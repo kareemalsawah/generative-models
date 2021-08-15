@@ -9,7 +9,8 @@ __pycache__/
 # Notebooks
 *.ipynb
 *.npy
-*.pkl
+mnist_colored.pkl
+shapes_colored.pkl
 .neptune
 
 # Distribution / packaging
