@@ -1,0 +1,35 @@
+# General Parameters
+model: 'RealNVP'
+dataset: 'shapes'
+use_cuda: True
+save_model_path: null  # If null, the model is not saved
+
+# Model Parameters
+max_val: 1
+large_model: False
+
+# Training Parameters
+batch_size: 16
+num_iters: 100
+lr: 5e-4
+eval_every: 250
+generate_every: 50
+eval_num_gen: 8
+clip_grad: null
+final_num_gen: 100
+floor_gen: False
+
+# Logging parameters
+experiment_name: 'RealNVP, binary shapes 1'
+
+############  Neptune Parameters ############
+log_neptune: True
+neptune_proj_name: 'kareem-elsawah/flow-models'
+neptune_tags: ['RealNVP','shapes']
+
+############  Tensorboard Parameters ############
+log_tensorboard: True
+
+############  tqdm and manual logging Parameters ############
+log_tqdm: True
+log_file: False
