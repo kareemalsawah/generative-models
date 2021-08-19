@@ -7,8 +7,9 @@ from .utils import *
 from .resnet import *
 
 class Preprocessor(nn.Module):
-    def __init__(self,max_val=1,alpha=0.05):
+    def __init__(self,n_bits=1,alpha=0.05):
         super().__init__()
+        max_val = 2**n_bits - 1
         self.max_val = max_val + 1
         self.alpha = alpha
 
@@ -29,22 +30,24 @@ class Preprocessor(nn.Module):
         '''
         if invert:
             x = torch.sigmoid(x)  # Inverse of logit
-            new_x = self.max_val*(x-self.alpha)/(1-2*self.alpha)
+            factor = self.max_val
+            new_x = factor*(x-self.alpha)/(1-2*self.alpha)
             log_x = safe_log(x)
             log_1_x = safe_log(1-x)
-            log_det_jac = log_x + log_1_x - np.log(1-2*self.alpha) + np.log(self.max_val)
+            log_det_jac = log_x + log_1_x - np.log(1-2*self.alpha) + np.log(factor)
 
             return new_x, log_det_jac
         else:
             x = x + uniform_dist(0,1,x.shape).to(x.device)  # Dequantization
             
             # Logit Trick
-            x /= self.max_val
+            factor = (1/self.max_val)
+            x = x*factor
             x = (1-2*self.alpha)*x + self.alpha
             log_x = safe_log(x)
             log_1_x = safe_log(1-x)
             new_x = log_x - log_1_x
-            log_det_jac = np.log((1-2*self.alpha)/self.max_val) - log_x - log_1_x
+            log_det_jac = np.log((1-2*self.alpha)*factor) - log_x - log_1_x
 
             return new_x, log_det_jac
 

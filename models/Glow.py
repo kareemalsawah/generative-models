@@ -76,13 +76,14 @@ class GlowBlockSqueeze(nn.Module):
     
 
 class Glow(nn.Module):
-    def __init__(self,in_shape,z_dist,n_blocks,flows_per_block,max_val=1,large_model=False):
+    def __init__(self,in_shape,z_dist,n_blocks,flows_per_block,n_bits=1,large_model=False):
         super().__init__()
         self.in_shape = in_shape
         self.z_dist = z_dist
         self.is_z_simple = isinstance(self.z_dist, torch.distributions.Distribution)
         self.large_model = large_model
-        preprocess = Preprocessor(max_val)
+        preprocess = Preprocessor(n_bits)
+        self.n_bits = n_bits
         
         layers = [preprocess]
         for _ in range(n_blocks):

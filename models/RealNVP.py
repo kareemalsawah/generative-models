@@ -21,14 +21,15 @@ class RealNVP(nn.Module):
     large_model: bool
         If True, a larger model is used
     '''
-    def __init__(self,in_shape,z_dist,max_val=1,large_model=False):
+    def __init__(self,in_shape,z_dist,n_bits=1,large_model=False):
         super().__init__()
         self.in_shape = in_shape
         self.z_dist = z_dist
+        self.n_bits = n_bits
         self.is_z_simple = isinstance(self.z_dist, torch.distributions.Distribution)
         self.large_model = large_model
 
-        preprocess = Preprocessor(max_val)
+        preprocess = Preprocessor(n_bits)
 
         layers_1 = self.create_checkboard(in_shape, 3)
 

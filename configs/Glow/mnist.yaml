@@ -1,6 +1,7 @@
 # General Parameters
 model: 'Glow'
 dataset: 'mnist'
+n_bits: 1
 use_cuda: True
 save_model_path: null  # If null, the model is not saved
 

@@ -79,9 +79,9 @@ def train(model, args, train_loader, val_loader, optimizer, clip_grad=None):
         
         if idx_iter%args.generate_every == 0:
             if args.is_AR:
-                generated_samples = generate_using_AR(model,args.final_num_gen)
+                generated_samples = generate_using_AR(model,args.eval_num_gen)
             else:
-                generated_samples = generate_using_flow(model,args.final_num_gen, args.floor_gen)
+                generated_samples = generate_using_flow(model,args.eval_num_gen, args.floor_gen)
 
             logger.log('metrics/train/samples',generated_samples)
     model.eval()
@@ -89,21 +89,21 @@ def train(model, args, train_loader, val_loader, optimizer, clip_grad=None):
 
 def main(args):
     print("Loading Dataset")
-    args.is_AR = args.model in ['MADE', 'PixelCNN']
-    img_size, train_loader, val_loader, test_loader = load_dataset(args.dataset, args.batch_size, args.is_AR)
+    args.is_AR = args.model in ['MADE','PixelCNN']
+    img_size, train_loader, val_loader, test_loader = load_dataset(args.dataset, args.batch_size, args.n_bits)
 
     print("Loading Model")
     if args.model == 'MADE':
         assert img_size[0] == 1
-        model = MADE(img_size[1], img_size[2])
+        model = MADE(img_size, args.n_bits)
     elif args.model == 'PixelCNN':
-        model = PixelCNN(img_size[1], img_size[2])
+        model = PixelCNN(img_size, args.n_blocks, args.n_bits)
     elif args.model == 'RealNVP':
         z_dist = torch.distributions.normal.Normal(0,1)
-        model = RealNVP(img_size, z_dist, args.max_val, args.large_model)
+        model = RealNVP(img_size, z_dist, args.n_bits, args.large_model)
     elif args.model == 'Glow':
         z_dist = torch.distributions.normal.Normal(0,1)
-        model = Glow(img_size, z_dist, args.n_blocks, args.flows_per_block, args.max_val, args.large_model)
+        model = Glow(img_size, z_dist, args.n_blocks, args.flows_per_block, args.n_bits, args.large_model)
     else:
         raise NotImplementedError("Model {} not recognized".format(args.model))
 
@@ -147,8 +147,10 @@ class Args():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Autoregressive trainer")
-    parser.add_argument("--config", default='./configs/MADE_shapes.yaml', type=str, help="Path to the config file")
+    parser.add_argument("--config", default='./configs/MADE/shapes.yaml', type=str, help="Path to the config file")
     file_path = parser.parse_args().config
     args = Args(file_path)
+
+    args.n_bits = int(args.n_bits)
 
     main(args)

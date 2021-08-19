@@ -29,7 +29,7 @@ def iter_wrapper(dataset, batch_size):
             data_loader = iter(data_loader)
             yield next(data_loader)
 
-def load_dataset(dataset_name:str,batch_size:int=16, binary:bool=False):
+def load_dataset(dataset_name:str,batch_size:int=16, n_bits:int=1):
     '''
     Load a dataset from the following list:
     - shapes
@@ -38,34 +38,33 @@ def load_dataset(dataset_name:str,batch_size:int=16, binary:bool=False):
     - colored_mnist
     Downloads the dataset if needed and returns some data about the dataset (img_size, num_of_iters)
     '''
-    assert dataset_name in ['mnist', 'shapes']
+    assert dataset_name in ['mnist', 'shapes','colored_mnist','colored_shapes','celeba_32']
 
-    existing_datasets = glob('./datasets/data/*')
-
-    if dataset_name == 'mnist':
-        dataset_path = './datasets/data/mnist.pkl'
+    if dataset_name  == 'mnist':
         img_size = (1,28,28)
     elif dataset_name == 'shapes':
-        dataset_path = './datasets/data/shapes.pkl'
         img_size = (1,20,20)
-        
+    elif dataset_name == 'colored_mnist':
+        img_size = (3,28,28)
+    elif dataset_name == 'colored_shapes':
+        img_size = (3,20,20)
+    elif dataset_name == 'celeba_32':
+        img_size = (3,32,32)
+    
+    dataset_path = './datasets/data/{}.pkl'.format(dataset_name)
     data = np.load(dataset_path, allow_pickle=True)
-    train_imgs = data['train'].transpose(0,3,1,2).astype(float)
+    train_imgs = data['train']
     train_labels = data['train_labels']
-    val_imgs = data['test'].transpose(0,3,1,2).astype(float)
+    val_imgs = data['test']
     val_labels = data['test_labels']
-    test_imgs = data['test'].transpose(0,3,1,2).astype(float)
+    test_imgs = data['test']
     test_labels = data['test_labels']
 
-    if 'colored' not in dataset_path:
-        train_imgs /= 255
-        val_imgs /= 255
-        test_imgs /= 255
-
-    if binary:
-        train_imgs = np.round(train_imgs).astype(float)
-        val_imgs = np.round(val_imgs).astype(float)
-        test_imgs = np.round(test_imgs).astype(float)
+    # Set Number of bits
+    max_val = 2**n_bits - 1
+    train_imgs = np.round(train_imgs*max_val).astype(np.float)
+    val_imgs = np.round(val_imgs*max_val).astype(np.float)
+    test_imgs = np.round(test_imgs*max_val).astype(np.float)
 
     train_dataset = ImgDataset(train_imgs, train_labels)
     val_dataset = ImgDataset(val_imgs, val_labels)

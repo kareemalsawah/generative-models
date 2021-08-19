@@ -15,31 +15,43 @@ def uniform_dist(a,b,size):
 def safe_log(tens,epsilon:float=1e-5):
     return torch.log(tens+epsilon)
 
-def generate_using_AR(model, num_images_to_generate:int):
+def generate_using_AR(model, num_images_to_gen:int):
     '''
-    Generate new samples using a given autoregressive model
+    '''
+    def sample_dist(probs):
+        '''
+        Parameters
+        ----------
+        probs: numpy.float array, shape = (-1, n)
+        '''
+        n = probs.shape[1]
+        generated = []
+        for prob in probs:
+            generated.append(np.random.choice(np.arange(n), p=prob))
+        return np.array(generated)
 
-    Parameters
-    ----------
-    model: torch.nn.Module
-        Trained model (MADE, PixelCNN) to be used to generate new images
-    num_images_to_generate: int
-        The number of images to generate
-    
-    Returns
-    -------
-    torch.FloatTensor, shape = (num_images_to_generate, self.H, self.W)
-        Containing only binary values
-    '''
-    device = next(model.parameters()).device  # Assumes all model parameters are on the save device
-    generated_imgs = torch.zeros((num_images_to_generate,model.H,model.W)).to(device)
+    images = torch.zeros((num_images_to_gen, model.C, model.H, model.W))
+    device = next(model.parameters()).device
+    images = images.to(device)
+    max_val = int(2**model.n_bits)
+
+    H, W, C = model.H, model.W, model.C
 
     with torch.no_grad():
-        for i in range(model.H):
-            for j in range(model.W):
-                pred = model.forward(generated_imgs).cpu().reshape(-1,model.H,model.W)
-                generated_imgs[:,i,j] = (torch.rand(num_images_to_generate)<pred[:,i,j]).type(torch.FloatTensor).to(device)
-    return generated_imgs.cpu().numpy()
+        model.eval()
+        for i in range(H):
+            for j in range(W):
+                logits = model.forward(images)
+                probs = torch.exp(logits).reshape(num_images_to_gen, C, H, W, max_val)[:, :, i, j].reshape(-1, max_val)
+                probs = probs.cpu().numpy()
+
+                sampled = sample_dist(probs)
+
+                sampled = sampled.reshape(num_images_to_gen, C)
+                images[:, :, i, j] = torch.from_numpy(sampled).to(device)
+
+    model.train()
+    return images.cpu().numpy()/float(max_val-1)
 
 def generate_using_flow(model,
                         num_samples:int=32,

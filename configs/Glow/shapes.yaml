@@ -1,13 +1,13 @@
 # General Parameters
 model: 'Glow'
 dataset: 'shapes'
+n_bits: 1
 use_cuda: True
 save_model_path: null  # If null, the model is not saved
 
 # Model Parameters
 n_blocks: 1
 flows_per_block: 30
-max_val: 1
 large_model: False
 
 # Training Parameters

@@ -59,10 +59,14 @@ class MADE(nn.Module):
     W: int
         Width of the image in pixels
     '''
-    def __init__(self, H, W):
+    def __init__(self, in_shape, n_bits=1):
         super().__init__()
+        C,H,W = in_shape
         self.H = H
         self.W = W
+        self.C = C
+        self.n_bits = n_bits
+        self.n_vals = 2**n_bits
         n_features = self.H*self.W
 
         self.layers = nn.Sequential(LinearMask(n_features,n_features,False),

@@ -1,23 +1,16 @@
-# Tractable Generative Models
-This repository contains implementation for tractable generative models from the following papers:
+# Tractable Generative Models (WIP)
+This repository contains implementations for tractable generative models from the following papers:
 
 ## Autoregressive Models
 * MADE
 * PixelCNN
-* PixelCNN++
-* GatedPixelCNN
-* PixelSNAIL
-* PixelRNN
 
 ## Flow Models
 * RealNVP
 * Glow
-* Flow++
-
-## Others
-* MAF (MAsked Autoregressive Flow)
 
 ## Results
+Detailed results for each model and each dataset (architecture, hyperparameters, training curves, samples throughout training, etc.) can be found in pdf form in the results folder along with LaTeX used for the report (still to be added)
 #### Shapes
 #### Colored Shapes
 #### MNIST
