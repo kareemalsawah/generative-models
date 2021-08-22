@@ -159,6 +159,8 @@ class GlowMultiScale(nn.Module):
                     curr_idx += 1
 
                 z, log_det = layer.forward(z, invert=True)
+                if len(log_det.shape)>1:
+                    log_det = torch.sum(log_det, dim=(1,2,3))
                 log_det_jac += log_det
             return z, log_det_jac
         else:
@@ -213,6 +215,6 @@ class GlowMultiScale(nn.Module):
 
         self.eval()
         with torch.no_grad():
-            x, _ = self.forward(z, invert=True)
+            x, _ = self.forward(z_list, invert=True)
         
         return x
