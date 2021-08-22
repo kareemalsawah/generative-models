@@ -101,10 +101,10 @@ class RealNVP(nn.Module):
         nll = -1*self.log_prob(x).mean()
         return nll
     
-    def sample(self, num_samples:int):
+    def sample(self, num_samples:int, temp:float=0.7):
         device = next(self.parameters()).device
 
-        z = self.z_dist.sample((num_samples,*self.in_shape)).to(device)
+        z = self.z_dist.sample((num_samples,*self.in_shape)).to(device)*temp
 
         self.eval()
         with torch.no_grad():

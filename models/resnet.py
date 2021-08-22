@@ -17,13 +17,13 @@ class ResBlock(nn.Module):
     def __init__(self,n_filters):
         super().__init__()
 
-        self.convs = nn.Sequential(WeightedConv2d(n_filters,n_filters,kernel_size=(1,1)),
+        self.convs = nn.Sequential(nn.Conv2d(n_filters,n_filters,kernel_size=(1,1)),
                                     nn.BatchNorm2d(n_filters),
                                     nn.ReLU(),
-                                    WeightedConv2d(n_filters,n_filters,kernel_size=(3,3),padding=1),
+                                    nn.Conv2d(n_filters,n_filters,kernel_size=(3,3),padding=1),
                                     nn.BatchNorm2d(n_filters),
                                     nn.ReLU(),
-                                    WeightedConv2d(n_filters,n_filters,kernel_size=(1,1)))
+                                    nn.Conv2d(n_filters,n_filters,kernel_size=(1,1)))
 
     def forward(self,x):
         h = self.convs(x)

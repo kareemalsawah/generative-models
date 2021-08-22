@@ -1,5 +1,5 @@
 # General Parameters
-model: 'Glow'
+model: 'GlowMultiScale'
 dataset: 'mnist'
 n_bits: 1
 use_cuda: True
@@ -7,9 +7,8 @@ save_model_path: null  # If null, the model is not saved
 
 # Model Parameters
 n_blocks: 2
-flows_per_block: 30
-max_val: 1
-large_model: False
+flows_per_block: 32
+temp: 0.7
 
 # Training Parameters
 batch_size: 16

@@ -20,7 +20,7 @@ final_num_gen: 100
 experiment_name: 'PixelCNN, colored shapes'
 
 ############  Neptune Parameters ############
-log_neptune: True
+log_neptune: False
 neptune_proj_name: 'kareem-elsawah/flow-models'
 neptune_tags: ['PixelCNN','colored_shapes','autoregressive']
 

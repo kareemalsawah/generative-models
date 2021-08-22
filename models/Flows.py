@@ -280,27 +280,6 @@ class FlowSequential(nn.Module):
 
         return x, log_det_jac
 
-class Squeeze3(nn.Module):
-    def __init__(self, inverted=False):
-        super().__init__()
-        self.inverted = inverted
-
-    def forward(self, x, invert:bool=False):
-        if self.inverted:
-            invert = not invert
-        if invert:
-            bs,c,sl,_ = x.shape
-            assert c==4
-
-            unsqueezed = x.permute(0,2,3,1).reshape(bs,sl,sl,2,2).permute(0,1,3,2,4).reshape(bs,1,2*sl,2*sl)
-            return unsqueezed, 0
-        else:
-            bs, c, sl, _ = x.shape
-            assert c==1
-
-            squeezed = x.reshape(bs,sl//2,2,sl//2,2).permute(0,1,3,2,4).reshape(bs,sl//2,sl//2,4).permute(0,3,1,2)
-            return squeezed, 0
-
 class Squeeze(nn.Module):
     def __init__(self, inverted=False):
         super().__init__()

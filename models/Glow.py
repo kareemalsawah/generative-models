@@ -8,15 +8,13 @@ from .utils import *
 from .Flows import *
 
 class GlowAffineCoupling(nn.Module):
-    def __init__(self, in_channels, filter_size=128):
+    def __init__(self, in_channels, filter_size=512):
         super().__init__()
 
         self.flow_net = nn.Sequential(nn.Conv2d(in_channels, filter_size, kernel_size=(3,3), padding=1),
-                                        nn.BatchNorm2d(filter_size),
-                                        nn.LeakyReLU(),
+                                        nn.ReLU(),
                                         nn.Conv2d(filter_size, filter_size, kernel_size=(1,1), padding=0),
-                                        nn.BatchNorm2d(filter_size),
-                                        nn.LeakyReLU(),
+                                        nn.ReLU(),
                                         nn.Conv2d(filter_size, in_channels*2, kernel_size=(3,3), padding=1))
 
         self.flow_net[-1].weight.data *= 0
@@ -49,8 +47,8 @@ class GlowAffineCoupling(nn.Module):
 
         return z, log_det_jacobian
 
-class GlowBlock(nn.Module):
-    def __init__(self,in_shape,filter_size=64):
+class GlowStep(nn.Module):
+    def __init__(self,in_shape,filter_size=512):
         super().__init__()
         in_channels = in_shape[0]
         actnorm = ActNorm(in_channels)
@@ -62,13 +60,13 @@ class GlowBlock(nn.Module):
         return self.layers.forward(x, invert=invert)
 
 class GlowBlockSqueeze(nn.Module):
-    def __init__(self, n_blocks, in_shape, filter_size=256):
+    def __init__(self, n_blocks, in_shape, filter_size=512):
         super().__init__()
         blocks = []
         scale_2_shape = (in_shape[0]*4,in_shape[1]//2,in_shape[2]//2)
         blocks.append(Squeeze(False))
         for _ in range(n_blocks):
-            blocks.append(GlowBlock(scale_2_shape,filter_size))
+            blocks.append(GlowStep(scale_2_shape,filter_size))
         self.layers = FlowSequential(blocks)
     
     def forward(self, x, invert=False):
@@ -76,12 +74,11 @@ class GlowBlockSqueeze(nn.Module):
     
 
 class Glow(nn.Module):
-    def __init__(self,in_shape,z_dist,n_blocks,flows_per_block,n_bits=1,large_model=False):
+    def __init__(self,in_shape,z_dist,n_blocks,flows_per_block,n_bits=1):
         super().__init__()
         self.in_shape = in_shape
         self.z_dist = z_dist
         self.is_z_simple = isinstance(self.z_dist, torch.distributions.Distribution)
-        self.large_model = large_model
         preprocess = Preprocessor(n_bits)
         self.n_bits = n_bits
         
@@ -117,10 +114,10 @@ class Glow(nn.Module):
         nll = -1*self.log_prob(x).mean()
         return nll
     
-    def sample(self, num_samples:int):
+    def sample(self, num_samples:int, temp:float=0.7):
         device = next(self.parameters()).device
 
-        z = self.z_dist.sample((num_samples,*self.in_shape)).to(device)
+        z = self.z_dist.sample((num_samples,*self.in_shape)).to(device)*temp
 
         self.eval()
         with torch.no_grad():
@@ -130,32 +127,40 @@ class Glow(nn.Module):
 
 
 class GlowMultiScale(nn.Module):
-    def __init__(self,in_shape,z_dist,max_val=1,large_model=False):
+    def __init__(self,in_shape,z_dist,n_blocks,flows_per_block,n_bits=1):
         super().__init__()
         self.in_shape = in_shape
         self.z_dist = z_dist
         self.is_z_simple = isinstance(self.z_dist, torch.distributions.Distribution)
-        self.large_model = large_model
-        preprocess = Preprocessor(max_val)
-        n_layers = 10
-
-        if self.large_model:
-            n_layers = 3
+        preprocess = Preprocessor(n_bits)
+        self.n_bits = n_bits
         
-        num_channels = in_shape[0]
         layers = [preprocess]
-        for _ in range(n_layers):
-            layers.append(GlowBlock(num_channels))
-            num_channels *= 2
+        self.z_shapes = []
+        for _ in range(n_blocks):
+            layers.append(GlowBlockSqueeze(flows_per_block, in_shape))
+            in_shape = in_shape[0]*2, in_shape[1]//2, in_shape[2]//2
+            self.z_shapes.append(in_shape)
+        
+        self.z_shapes.append(in_shape)
+
         self.layers = FlowSequential(layers)
 
-        
-        self.final_block = GlowBlock(num_channels)
 
     def forward(self,x,invert=False):
         if invert:
-            z_list = x
+            z_list = x[::-1]
+            log_det_jac = 0
+            z = z_list[0]
+            curr_idx = 1
+            for layer in self.layers.layers[::-1]:
+                if type(layer) is GlowBlockSqueeze:
+                    z = torch.cat([z,z_list[curr_idx]],dim=1)
+                    curr_idx += 1
 
+                z, log_det = layer.forward(z, invert=True)
+                log_det_jac += log_det
+            return z, log_det_jac
         else:
             z = x
             z_combined = []
@@ -163,11 +168,10 @@ class GlowMultiScale(nn.Module):
             for layer in self.layers.layers:
                 z, log_det = layer.forward(z)
                 log_det_jac += log_det
-                z, z_1 = torch.chunk(z, 2, dim=1)
-                z_combined.append(z_1)
-            z, log_det = self.final_block.forward(z)
+                if type(layer) is GlowBlockSqueeze:
+                    z, z_1 = torch.chunk(z, 2, dim=1)
+                    z_combined.append(z_1)
             z_combined.append(z)
-            log_det_jac += log_det
 
         return z_combined, log_det_jac
 
@@ -199,5 +203,16 @@ class GlowMultiScale(nn.Module):
         nll = -1*self.log_prob(x).mean()
         return nll
     
-    def sample(self, num_samples:int):
-        pass
+    def sample(self, num_samples:int, temp:float=0.7):
+        device = next(self.parameters()).device
+
+        z_list = []
+        for z_shape in self.z_shapes:
+            z = self.z_dist.sample((num_samples,*z_shape)).to(device)*temp
+            z_list.append(z)
+
+        self.eval()
+        with torch.no_grad():
+            x, _ = self.forward(z, invert=True)
+        
+        return x

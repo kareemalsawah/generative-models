@@ -18,7 +18,7 @@ class Logger:
 
         # Prepare Logging Tools
         if args.log_neptune:
-            api_token =  "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI1MzUwNWY0Ni04MjA3LTQzNzQtYTQyMi1kNGJlMWQ4ZTQ1ZGUifQ=="
+            api_token =  "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJjOTJmMzJlZS1kMzMwLTRjNWMtYWQ3YS0yYTZmYWY1YzE2NWIifQ=="
             self.run = neptune.init(args.neptune_proj_name, api_token=api_token)
             #neptune.create_experiment(args.experiment_name, params=args.params, tags=args.neptune_tags)
             self.run['parameters'] = args.params
@@ -80,8 +80,10 @@ def train(model, args, train_loader, val_loader, optimizer, clip_grad=None):
         if idx_iter%args.generate_every == 0:
             if args.is_AR:
                 generated_samples = generate_using_AR(model,args.eval_num_gen)
+            elif args.model == 'NCSN':
+                generated_samples = model.sample(args.eval_num_gen)
             else:
-                generated_samples = generate_using_flow(model,args.eval_num_gen, args.floor_gen)
+                generated_samples = generate_using_flow(model,args.eval_num_gen, args.floor_gen, args.temp)
 
             logger.log('metrics/train/samples',generated_samples)
     model.eval()
@@ -103,11 +105,17 @@ def main(args):
         model = RealNVP(img_size, z_dist, args.n_bits, args.large_model)
     elif args.model == 'Glow':
         z_dist = torch.distributions.normal.Normal(0,1)
-        model = Glow(img_size, z_dist, args.n_blocks, args.flows_per_block, args.n_bits, args.large_model)
+        model = Glow(img_size, z_dist, args.n_blocks, args.flows_per_block, args.n_bits)
+    elif args.model == 'GlowMultiScale':
+        z_dist = torch.distributions.normal.Normal(0,1)
+        model = GlowMultiScale(img_size, z_dist, args.n_blocks, args.flows_per_block, args.n_bits)
+    elif args.model == 'NCSN':
+        model = NCSN(img_size, args.L, args.sigma_1, args.n_bits)
     else:
         raise NotImplementedError("Model {} not recognized".format(args.model))
 
     if args.use_cuda:
+        print("Using GPU")
         model = model.cuda()
     
     optimizer = torch.optim.Adam(model.parameters(),lr=float(args.lr))
@@ -120,8 +128,10 @@ def main(args):
 
     if args.is_AR:
         final_generated_samples = generate_using_AR(model,args.final_num_gen)
+    elif args.model == 'NCSN':
+        final_generated_samples = model.sample(args.eval_num_gen)
     else:
-        final_generated_samples = generate_using_flow(model,args.final_num_gen, args.floor_gen)
+        final_generated_samples = generate_using_flow(model,args.final_num_gen, args.floor_gen, args.temp)
 
     logger.log('metrics/train/samples',final_generated_samples)
     logger.log('metrics/test/loss',final_test_loss)

@@ -56,6 +56,7 @@ def generate_using_AR(model, num_images_to_gen:int):
 def generate_using_flow(model,
                         num_samples:int=32,
                         floor:bool=True,
+                        temp:float=0.7,
                         num_to_plot:int=0,
                         samples_per_row:int=5,
                         figsize=(15,8),
@@ -71,6 +72,8 @@ def generate_using_flow(model,
         The number of samples to generate
     floor: bool
         Whether to floor the generated samples or not
+    temp: float
+        Temprature to use for the latent distribution p_Z(z)
     num_to_plot: int
         Number of samples to plot using matplotlib, if 0 plotting is skipped
     samples_per_row: int
@@ -85,7 +88,7 @@ def generate_using_flow(model,
     np.array of floats
         shape = (num_samples, C, H, W) containing the samples generated
     '''
-    x = model.sample(num_samples)
+    x = model.sample(num_samples, temp)
 
     if floor:
         x = torch.clamp(torch.floor(x),min=0,max=model.preprocess.max_val-1)
